@@ -856,7 +856,8 @@ vjs.Player.prototype.isFullScreen = function(isFS){
  * @return {vjs.Player} self
  */
 vjs.Player.prototype.requestFullScreen = function(){
-  var requestFullScreen = vjs.support.requestFullScreen;
+  var requestFullScreen = vjs.support.requestFullScreen,
+      errorCallback;
   this.isFullScreen(true);
 
   if (requestFullScreen) {
@@ -868,12 +869,23 @@ vjs.Player.prototype.requestFullScreen = function(){
     // when cancelling fullscreen. Otherwise if there's multiple
     // players on a page, they would all be reacting to the same fullscreen
     // events
+
+    // The same is true for error events, but the 'error' event handler isn't
+    // the callee for the 'cancel' event, so it has to be initialized here.
+    errorCallback = vjs.bind(this, function(e) {
+        vjs.off(document, requestFullScreen.errorEventName, arguments.callee);
+        this.trigger('fullscreenerror');
+    });
+
+    vjs.on(document, requestFullScreen.errorEventName, errorCallback);
+
     vjs.on(document, requestFullScreen.eventName, vjs.bind(this, function(e){
       this.isFullScreen(document[requestFullScreen.isFullScreen]);
 
       // If cancelling fullscreen, remove event listener.
       if (this.isFullScreen() === false) {
         vjs.off(document, requestFullScreen.eventName, arguments.callee);
+        vjs.off(document, requestFullScreen.errorEventName, errorCallback);
       }
 
       this.trigger('fullscreenchange');
@@ -1388,15 +1400,24 @@ vjs.Player.prototype.listenForUserActivity = function(){
   // http://dvcs.w3.org/hg/fullscreen/raw-file/tip/Overview.html#api
   // Mozilla Draft: https://wiki.mozilla.org/Gecko:FullScreenAPI#fullscreenchange_event
   // New: https://dvcs.w3.org/hg/fullscreen/raw-file/529a67b8d9f3/Overview.html
-  if (div.cancelFullscreen !== undefined) {
+  // Per the spec, requestFullscreen is on Element, all other functions are on Document.
+  if (div.requestFullscreen !== undefined) {
     requestFS.requestFn = 'requestFullscreen';
     requestFS.cancelFn = 'exitFullscreen';
     requestFS.eventName = 'fullscreenchange';
-    requestFS.isFullScreen = 'fullScreen';
-
+    requestFS.errorEventName = 'fullscreenerror';
+    requestFS.isFullScreen = 'fullscreenElement';
+  }
+  // IE 11 almost exactly follows the standard, but with a prefix and different casing
+  else if (div.msRequestFullscreen) {
+    requestFS.requestFn = 'msRequestFullscreen';
+    requestFS.cancelFn = 'msExitFullscreen';
+    requestFS.eventName = 'MSFullscreenChange';
+    requestFS.errorEventName = 'MSFullscreenError';
+    requestFS.isFullScreen = 'msFullscreenElement';
   // Webkit (Chrome/Safari) and Mozilla (Firefox) have working implementations
   // that use prefixes and vary slightly from the new W3C spec. Specifically,
-  // using 'exit' instead of 'cancel', and lowercasing the 'S' in Fullscreen.
+  // using 'cancel' instead of 'exit', and upper-casing the 'S' in Fullscreen.
   // Other browsers don't have any hints of which version they might follow yet,
   // so not going to try to predict by looping through all prefixes.
   } else {
@@ -1414,6 +1435,7 @@ vjs.Player.prototype.listenForUserActivity = function(){
       requestFS.cancelFn = prefix + 'CancelFullScreen';
     }
     requestFS.eventName = prefix + 'fullscreenchange';
+    requestFS.errorEventName = prefix + 'fullscreenerror';
   }
 
   if (document[requestFS.cancelFn]) {

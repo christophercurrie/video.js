@@ -35,6 +35,14 @@ vjs.Slider = vjs.Component.extend({
   }
 });
 
+// IE 11 has a fullscreen bug: offsetWidth has the wrong value
+// if the player is embedded in an iframe, and then put into
+// fullscreen. These functions attempt to deal with that issue.
+//
+// A demo of the bug is here: http://christophercurrie.github.io/ie11fullscreen/
+vjs.Slider.elementHeight = function(e) { return Math.max(e.offsetHeight, e.clientHeight); };
+vjs.Slider.elementWidth = function(e) { return Math.max(e.offsetWidth, e.clientWidth); };
+
 vjs.Slider.prototype.createEl = function(type, props) {
   props = props || {};
   // Add the slider element class to all sub classes
@@ -99,9 +107,9 @@ vjs.Slider.prototype.update = function(){
   if (handle) {
 
     var box = this.el_,
-        boxWidth = box.offsetWidth,
+        boxWidth = vjs.Slider.elementWidth(box),
 
-        handleWidth = handle.el().offsetWidth,
+        handleWidth = vjs.Slider.elementWidth(handle.el()),
 
         // The width of the handle in percent of the containing box
         // In IE, widths may not be ready yet causing NaN
@@ -130,7 +138,7 @@ vjs.Slider.prototype.calculateDistance = function(event){
 
   el = this.el_;
   box = vjs.findPosition(el);
-  boxW = boxH = el.offsetWidth;
+  boxW = boxH = vjs.Slider.elementWidth(el);
   handle = this.handle;
 
   if (this.options_.vertical) {
@@ -143,7 +151,7 @@ vjs.Slider.prototype.calculateDistance = function(event){
     }
 
     if (handle) {
-      var handleH = handle.el().offsetHeight;
+      var handleH = vjs.Slider.elementHeight(handle.el());
       // Adjusted X and Width, so handle doesn't go outside the bar
       boxY = boxY + (handleH / 2);
       boxH = boxH - handleH;
@@ -162,7 +170,7 @@ vjs.Slider.prototype.calculateDistance = function(event){
     }
 
     if (handle) {
-      var handleW = handle.el().offsetWidth;
+      var handleW = vjs.Slider.elementWidth(handle.el());
 
       // Adjusted X and Width, so handle doesn't go outside the bar
       boxX = boxX + (handleW / 2);

@@ -244,23 +244,54 @@ test('should set controls and trigger events', function() {
   player.dispose();
 });
 
-// Can't figure out how to test fullscreen events with tests
-// Browsers aren't triggering the events at least
-// asyncTest('should trigger the fullscreenchange event', function() {
-//   expect(3);
+// In PhantomJS, the requestFullScreen call succeeds, so we can check for the fullscreen state.
+// Actual browser will fail because the fullscreen request didn't come from a user UI event,
+// but that does show that the system works, so it's still a valid test.
+// Only if neither event is called should the test fail.
+asyncTest('should attempt to trigger the fullscreenchange event', function() {
+    var player = PlayerTest.makePlayer(),
+        sawEvent = false;
+    if (player.supportsFullScreen) {
+        // Headless PhantomJS will fake the fullscreen support.
+        player.on('fullscreenchange', function(){
+            expect(3);
 
-//   var player = PlayerTest.makePlayer();
-//   player.on('fullscreenchange', function(){
-//     ok(true, 'fullscreenchange event fired');
-//     ok(this.isFullScreen() === true, 'isFullScreen is true');
-//     ok(this.el().className.indexOf('vjs-fullscreen') !== -1, 'vjs-fullscreen class added');
+            ok(true, '[success] saw fullscreenchange');
+            ok(this.isFullScreen() === true, 'isFullScreen is true');
+            ok(this.el().className.indexOf('vjs-fullscreen') !== -1, 'vjs-fullscreen class added');
+            sawEvent = true;
+            start();
+        });
 
-//     player.dispose();
-//     start();
-//   });
+        // Real browsers will generate an error event.
+        player.on('fullscreenerror', function(){
+            expect(1);
 
-//   player.requestFullScreen();
-// });
+            ok(true, '[success] saw fullscreen error');
+            sawEvent = true;
+            start();
+        });
+
+        setTimeout(function(){
+            if (!sawEvent) {
+                expect(1);
+                ok(sawEvent, '[failed] fullscreen event not called');
+                start();
+            }
+        }, 100);
+
+        player.requestFullScreen();
+    } else {
+        // Auto-pass if fullscreen isn't supported on the browser
+        setTimeout(function(){
+            expect(1);
+
+            ok(true, '[skipped] fullscreen not supported');
+            start();
+        }, 100);
+    }
+});
+
 
 test('should toggle user the user state between active and inactive', function(){
   var player = PlayerTest.makePlayer({});

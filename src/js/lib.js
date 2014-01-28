@@ -666,14 +666,33 @@ vjs.log = function(){
   }
 };
 
+// Workaround for IE 11 bug in bounding rect
+vjs.getBoundingClientRect = function(el) {
+  var box, temp;
+
+  if (el.getBoundingClientRect && el.parentNode) {
+    box = el.getBoundingClientRect();
+    if (el.offsetWidth < el.clientWidth || el.offsetHeight < el.clientHeight) {
+      // gBCR results are read-only.
+      temp = {
+        top: box.top * 100,
+        right: box.right * 100,
+        bottom: box.bottom * 100,
+        left: box.left * 100
+      };
+      box = temp;
+    }
+  }
+
+  return box;
+};
+
 // Offset Left
 // getBoundingClientRect technique from John Resig http://ejohn.org/blog/getboundingclientrect-is-awesome/
 vjs.findPosition = function(el) {
     var box, docEl, body, clientLeft, scrollLeft, left, clientTop, scrollTop, top;
 
-    if (el.getBoundingClientRect && el.parentNode) {
-      box = el.getBoundingClientRect();
-    }
+    box = vjs.getBoundingClientRect(el);
 
     if (!box) {
       return {
